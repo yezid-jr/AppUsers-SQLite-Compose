@@ -27,6 +27,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.TextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -40,6 +42,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Box
+
 
 class MainActivity : ComponentActivity() {
     private lateinit var dbHelper: DatabaseOpenHelper
@@ -87,6 +91,7 @@ fun addUsers(dbHelper: DatabaseOpenHelper, modifier: Modifier = Modifier) {
     var phone by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
 
+    var editingUserId by remember { mutableStateOf<Int?>(null) }
     var users by remember { mutableStateOf(dbHelper.getAllUsers()) }
     val context = LocalContext.current
 
@@ -100,7 +105,7 @@ fun addUsers(dbHelper: DatabaseOpenHelper, modifier: Modifier = Modifier) {
             value = name,
             onValueChange = { name = it },
             label = { Text("Name") },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -108,7 +113,7 @@ fun addUsers(dbHelper: DatabaseOpenHelper, modifier: Modifier = Modifier) {
             value = lastname,
             onValueChange = { lastname = it },
             label = { Text("Lastname") },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -116,38 +121,40 @@ fun addUsers(dbHelper: DatabaseOpenHelper, modifier: Modifier = Modifier) {
             value = age,
             onValueChange = { age = it },
             label = { Text("Age") },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(8.dp))
 
-        OutlinedTextField(
-            value = gender,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Gender") },
-            modifier = Modifier.fillMaxSize(),
-            trailingIcon = {
-                IconButton(onClick = { expanded = !expanded }) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowDropDown,
-                        contentDescription = "Expand Menu"
+        Box {
+            OutlinedTextField(
+                value = gender,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Gender") },
+                modifier = Modifier.fillMaxWidth(),
+                trailingIcon = {
+                    IconButton(onClick = { expanded = !expanded }) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = "Expand Menu"
+                        )
+                    }
+                }
+            )
+
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                genderOptions.forEach { selectionOption ->
+                    DropdownMenuItem(
+                        text = { Text(selectionOption) },
+                        onClick = {
+                            gender = selectionOption
+                            expanded = false
+                        }
                     )
                 }
-            }
-        )
-
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            genderOptions.forEach { selectionOption ->
-                DropdownMenuItem(
-                    text = { Text(selectionOption) },
-                    onClick = {
-                        gender = selectionOption
-                        expanded = false
-                    }
-                )
             }
         }
 
@@ -157,7 +164,7 @@ fun addUsers(dbHelper: DatabaseOpenHelper, modifier: Modifier = Modifier) {
             value = phone,
             onValueChange = { phone = it },
             label = { Text("Phone") },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -165,7 +172,7 @@ fun addUsers(dbHelper: DatabaseOpenHelper, modifier: Modifier = Modifier) {
             value = email,
             onValueChange = { email = it },
             label = { Text("Email") },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -174,26 +181,46 @@ fun addUsers(dbHelper: DatabaseOpenHelper, modifier: Modifier = Modifier) {
                 val ageInt = age.toIntOrNull()
                 if (name.isNotBlank() && lastname.isNotBlank() && ageInt != null &&
                     gender.isNotBlank() && phone.isNotBlank() && email.isNotBlank()) {
-                    if (dbHelper.insertUser(name, lastname, ageInt, gender, phone, email)) {
-                        Toast.makeText(context, "User added successfully", Toast.LENGTH_SHORT).show()
-                        users = dbHelper.getAllUsers()
-                        // Limpiar campos
-                        name = ""
-                        lastname = ""
-                        age = ""
-                        gender = ""
-                        phone = ""
-                        email = ""
+
+                    if (editingUserId == null) {
+                        // Agregar nuevo usuario
+                        if (dbHelper.insertUser(name, lastname, ageInt, gender, phone, email)) {
+                            Toast.makeText(context, "User added successfully", Toast.LENGTH_SHORT).show()
+                            users = dbHelper.getAllUsers()
+                            // Limpiar campos
+                            name = ""
+                            lastname = ""
+                            age = ""
+                            gender = ""
+                            phone = ""
+                            email = ""
+                        } else {
+                            Toast.makeText(context, "Failed to add user", Toast.LENGTH_SHORT).show()
+                        }
                     } else {
-                        Toast.makeText(context, "Failed to add user", Toast.LENGTH_SHORT).show()
+                        // Actualizar usuario existente
+                        if (dbHelper.updateUser(editingUserId!!, name, lastname, ageInt, gender, phone, email)) {
+                            Toast.makeText(context, "User updated successfully", Toast.LENGTH_SHORT).show()
+                            users = dbHelper.getAllUsers()
+                            editingUserId = null
+                            // Limpiar campos
+                            name = ""
+                            lastname = ""
+                            age = ""
+                            gender = ""
+                            phone = ""
+                            email = ""
+                        } else {
+                            Toast.makeText(context, "Failed to update user", Toast.LENGTH_SHORT).show()
+                        }
                     }
                 } else {
                     Toast.makeText(context, "Please fill all fields", Toast.LENGTH_SHORT).show()
                 }
             },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Add User")
+            Text(if (editingUserId == null) "Add User" else "Update User")
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -201,17 +228,36 @@ fun addUsers(dbHelper: DatabaseOpenHelper, modifier: Modifier = Modifier) {
         Spacer(modifier = Modifier.height(8.dp))
 
         users.forEach { user ->
-            UserRow(user)
+            UserRow(
+                user = user,
+                onDelete = {
+                    if (dbHelper.deleteUser(user["id"] as Int)) {
+                        Toast.makeText(context, "User deleted successfully", Toast.LENGTH_SHORT).show()
+                        users = dbHelper.getAllUsers()
+                    } else {
+                        Toast.makeText(context, "Failed to delete user", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onEdit = {
+                    editingUserId = user["id"] as Int
+                    name = user["name"] as String
+                    lastname = user["lastname"] as String
+                    age = user["age"].toString()
+                    gender = user["gender"] as String
+                    phone = user["phone"] as String
+                    email = user["email"] as String
+                }
+            )
         }
     }
 }
 
 @Composable
-fun UserRow(user: Map<String, Any>) {
+fun UserRow(user: Map<String, Any>, onDelete: () -> Unit, onEdit: () -> Unit) {
     Column(
         modifier = Modifier
             .padding(8.dp)
-            .fillMaxSize()
+            .fillMaxWidth()
     ) {
         Text("Name: ${user["name"]}")
         Text("Lastname: ${user["lastname"]}")
@@ -219,6 +265,16 @@ fun UserRow(user: Map<String, Any>) {
         Text("Gender: ${user["gender"]}")
         Text("Phone: ${user["phone"]}")
         Text("Email: ${user["email"]}")
+
+        Row {
+            Button(onClick = onEdit) {
+                Text("Edit")
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Button(onClick = onDelete) {
+                Text("Delete")
+            }
+        }
         Spacer(modifier = Modifier.height(8.dp))
     }
 }
@@ -324,5 +380,45 @@ class DatabaseOpenHelper(context: Context) :
         db.close()
 
         return usersList
+    }
+
+    fun deleteUser(userId: Int): Boolean {
+        val db = writableDatabase
+        return try {
+            val result = db.delete(TABLE_NAME, "$COLUMN_ID=?", arrayOf(userId.toString()))
+            db.close()
+            result > 0
+        } catch (e: Exception) {
+            db.close()
+            false
+        }
+    }
+
+    fun updateUser(
+        userId: Int,
+        name: String,
+        lastname: String,
+        age: Int,
+        gender: String,
+        phone: String,
+        email: String
+    ): Boolean {
+        val db = writableDatabase
+        val values = ContentValues().apply {
+            put(COLUMN_NAME, name)
+            put(COLUMN_LASTNAME, lastname)
+            put(COLUMN_AGE, age)
+            put(COLUMN_GENDER, gender)
+            put(COLUMN_PHONE, phone)
+            put(COLUMN_EMAIL, email)
+        }
+        return try {
+            val result = db.update(TABLE_NAME, values, "$COLUMN_ID=?", arrayOf(userId.toString()))
+            db.close()
+            result > 0
+        } catch (e: Exception) {
+            db.close()
+            false
+        }
     }
 }
